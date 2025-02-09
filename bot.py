@@ -1,19 +1,21 @@
 import os
-from pyunpack import Archive
+import patoolib
 from telegram import Update
 from telegram.ext import Application, CommandHandler, MessageHandler, filters, CallbackContext
 
 # Ambil TOKEN dari environment variable
 TOKEN = os.getenv("TOKEN")
+if not TOKEN:
+    raise ValueError("TOKEN tidak ditemukan! Pastikan sudah diset di Railway.")
 
 # Buat folder penyimpanan
 DOWNLOAD_FOLDER = "downloads"
 os.makedirs(DOWNLOAD_FOLDER, exist_ok=True)
 
-async def start(update: Update, context: CallbackContext) -> None:
+async def start(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
     await update.message.reply_text("Halo! Kirim file ZIP atau RAR, saya akan mengekstraknya!")
 
-async def handle_file(update: Update, context: CallbackContext) -> None:
+async def handle_file(update: Update, context: CallbackContext.DEFAULT_TYPE) -> None:
     file = update.message.document
     if not file:
         return
@@ -28,7 +30,7 @@ async def handle_file(update: Update, context: CallbackContext) -> None:
 
     # Download file dari Telegram
     file_obj = await file.get_file()
-    await file_obj.download_to_drive(file_path)
+    await file_obj.download(file_path)
     
     # Folder hasil ekstraksi
     extract_folder = os.path.join(DOWNLOAD_FOLDER, file_name + "_extracted")
@@ -36,7 +38,7 @@ async def handle_file(update: Update, context: CallbackContext) -> None:
 
     try:
         # Ekstrak file ZIP atau RAR
-        Archive(file_path).extractall(extract_folder)
+        patoolib.extract_archive(file_path, outdir=extract_folder)
         await update.message.reply_text("File berhasil diekstrak! Mengirim file...")
 
         # Kirim semua file hasil ekstraksi ke Telegram
@@ -47,7 +49,7 @@ async def handle_file(update: Update, context: CallbackContext) -> None:
     except Exception as e:
         await update.message.reply_text(f"Terjadi kesalahan saat ekstraksi: {e}")
 
-async def error_handler(update: object, context: CallbackContext) -> None:
+async def error_handler(update: object, context: CallbackContext.DEFAULT_TYPE) -> None:
     print(f"Terjadi kesalahan: {context.error}")
 
 def main():
